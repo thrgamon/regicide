@@ -4,16 +4,27 @@ import (
 	"fmt"
 	"io"
 	"log"
-	_ "os"
+	"os"
 	"regexp"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
 )
 
+var regex = make(chan string)
+var fileLog = log.Logger{}
+var userString = os.Args[1]
+
 func main() {
+  f, err := os.OpenFile("testlogfile", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+  if err != nil {
+      log.Fatalf("error opening file: %v", err)
+  }
+  defer f.Close()
+
+  fileLog.SetOutput(f)
 	// userRegex := os.Args[1]
-	// userString := os.Args[2]
 	// re := regexp.MustCompile(userRegex)
 	// results := ReturnsMatch(re, userString)
 	// for _, result := range results {
@@ -34,13 +45,44 @@ func main() {
 		log.Panicln(err)
 	}
 
+
+  go updater(g)
+
+
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
 }
 
+func updater(g *gocui.Gui) {
+  for {
+    select {
+  case reg := <-regex:
+    g.Update(func(g *gocui.Gui) error {
+      v,err := g.View("results")
+      rv,err := g.View("regex")
+
+      if err != nil {
+        return err
+      }
+
+      fileLog.Print(reg)
+
+      v.Clear()
+      re := regexp.MustCompile(strings.Replace(rv.ViewBuffer(), "\n", "", 1))
+      matches := ReturnsMatch(re, userString)
+      for _, result := range matches {
+        PrintResults(v,userString, result)
+      }
+      return nil
+    })
+  }
+
+  }
+}
+
 func layout(g *gocui.Gui) error {
-	maxX, _ := g.Size()
+	maxX, maxY := g.Size()
 	if v, err := g.SetView("regex", 1, 1, maxX-2, 3); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -50,6 +92,12 @@ func layout(g *gocui.Gui) error {
 		v.Editor = DefaultEditor
 		v.Wrap = true
 		g.SetCurrentView("regex")
+	}
+
+	if _, err := g.SetView("results", 1, 4, maxX-2, maxY - 2); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
 	}
 
 	return nil
@@ -72,9 +120,15 @@ func simpleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	case key == gocui.KeyArrowRight:
 		v.MoveCursor(1, 0, false)
 	}
+
+  var buf []byte
+  v.Read(buf)
+
+  go func() {regex <- string(buf)}()
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
+  close(regex)
 	return gocui.ErrQuit
 }
 
