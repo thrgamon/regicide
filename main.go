@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+  "flag"
 
 	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
@@ -15,33 +16,39 @@ import (
 var regex = make(chan string)
 var fileLog = log.Logger{}
 var userString = os.Args[1]
+var debugMode bool
+
+func init() {
+  flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
+}
 
 func main() {
-  f, err := os.OpenFile("testlogfile", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
-  if err != nil {
-      log.Fatalf("error opening file: %v", err)
-  }
-  defer f.Close()
+  flag.Parse()
 
-  fileLog.SetOutput(f)
-	// userRegex := os.Args[1]
-	// re := regexp.MustCompile(userRegex)
-	// results := ReturnsMatch(re, userString)
-	// for _, result := range results {
-	//   PrintResults(os.Stdout, userString, result)
-	// }
+  if debugMode {
+    f, err := os.OpenFile("debug.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+    if err != nil {
+        log.Fatalf("error opening file: %v", err)
+    }
+    defer f.Close()
+
+    fileLog.SetOutput(f)
+  }
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		log.Panicln(err)
 	}
-	defer g.Close()
 
 	g.SetManagerFunc(layout)
 	g.Mouse = true
 	g.Cursor = true
 
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding("", gocui.MouseLeft, gocui.ModNone, setView); err != nil {
 		log.Panicln(err)
 	}
 
@@ -52,6 +59,16 @@ func main() {
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
+
+  rv, _ := g.View("regex")
+  line := rv.ViewBuffer()
+	g.Close()
+  println(line)
+}
+
+func setView(g *gocui.Gui, v *gocui.View) error {
+  g.SetCurrentView(v.Name())
+  return nil
 }
 
 func updater(g *gocui.Gui) {
@@ -66,14 +83,27 @@ func updater(g *gocui.Gui) {
         return err
       }
 
-      fileLog.Print(reg)
+      if debugMode {
+        fileLog.Print(reg)
+      }
 
       v.Clear()
-      re := regexp.MustCompile(strings.Replace(rv.ViewBuffer(), "\n", "", 1))
-      matches := ReturnsMatch(re, userString)
-      for _, result := range matches {
-        PrintResults(v,userString, result)
+      reRaw := strings.Replace(rv.ViewBuffer(), "\n", "", 1)
+      if reRaw == "" {
+        fmt.Fprint(v, userString)
+        return nil
       }
+
+      re, err := regexp.Compile(reRaw)
+      if err != nil {
+        fmt.Fprint(v, err.Error())
+      } else {
+        matches := ReturnsMatch(re, userString)
+        for _, result := range matches {
+          PrintResults(v,userString, result)
+        }
+      }
+
       return nil
     })
   }
@@ -88,16 +118,16 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 		v.Editable = true
-		var DefaultEditor gocui.Editor = gocui.EditorFunc(simpleEditor)
-		v.Editor = DefaultEditor
+		v.Editor = gocui.EditorFunc(simpleEditor)
 		v.Wrap = true
 		g.SetCurrentView("regex")
 	}
 
-	if _, err := g.SetView("results", 1, 4, maxX-2, maxY - 2); err != nil {
+	if vr, err := g.SetView("results", 1, 4, maxX-2, maxY - 2); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
+    fmt.Fprint(vr, userString)
 	}
 
 	return nil
@@ -121,10 +151,7 @@ func simpleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.MoveCursor(1, 0, false)
 	}
 
-  var buf []byte
-  v.Read(buf)
-
-  go func() {regex <- string(buf)}()
+  go func() {regex <- ""}()
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
