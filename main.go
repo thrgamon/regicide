@@ -17,9 +17,11 @@ var regex = make(chan string)
 var fileLog = log.Logger{}
 var userString = os.Args[1]
 var debugMode bool
+var multiLine bool
 
 func init() {
   flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
+  flag.BoolVar(&multiLine, "multiline", false, "Run against multiple lines of text")
 }
 
 func main() {
@@ -99,8 +101,12 @@ func updater(g *gocui.Gui) {
         fmt.Fprint(v, err.Error())
       } else {
         matches := ReturnsMatch(re, userString)
-        for _, result := range matches {
-          PrintResults(v,userString, result)
+        if true {
+            PrintResultsMultiline(v,userString, matches)
+        } else {
+          for _, result := range matches {
+            PrintResults(v,userString, result)
+          }
         }
       }
 
@@ -159,6 +165,59 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
+type Colorer func(a ...interface{}) string
+
+func PrintResultsMultiline(w io.Writer, userString string, matches [][]int) {
+    // Setup the color function
+    blue := color.New(color.BgBlue).SprintFunc()
+    red := color.New(color.BgRed).SprintFunc()
+
+  for index, char := range userString {
+    var colorer Colorer
+    var match bool
+    if index % 2 == 0 {
+      colorer = red
+    } else {
+      colorer = blue
+    }
+
+    for _, matchIndex := range matches {
+      if index >= matchIndex[0] && index < matchIndex[1] {
+        match = true
+      }
+      if match == true {
+        break
+      }
+    }
+
+    if match == true {
+      fmt.Fprintf(w, "%s", colorer(string(char)))
+    } else {
+      fmt.Fprintf(w, "%s", string(char))
+    }
+  }
+  // for index, matchIndex := range matches {
+  //   // Get the beginning and the end of the match
+  //   ms := matchIndex[0]
+  //   me := matchIndex[1]
+
+  //   // Split the string around the matches
+  //   prefix := userString[:ms]
+  //   result := userString[ms:me]
+  //   suffix := userString[me:]
+
+
+  //   if index == 0 {
+  //     fmt.Fprintf(w, "%s", prefix)
+  //   }
+  //     fmt.Fprintf(w, "%s", red(result))
+  //   if index == len(matches) - 1 {
+  //     fmt.Fprintf(w, "%s", suffix)
+  //   }
+
+    // Print, highlighting the match
+  // }
+}
 func PrintResults(w io.Writer, userString string, matchIndex []int) {
 	// Get the beginning and the end of the match
 	ms := matchIndex[0]
