@@ -43,14 +43,9 @@ func main() {
 	}
 
 	g.SetManagerFunc(layout)
-	g.Mouse = true
 	g.Cursor = true
 
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding("", gocui.MouseLeft, gocui.ModNone, setView); err != nil {
 		log.Panicln(err)
 	}
 
@@ -64,11 +59,6 @@ func main() {
 	line := rv.ViewBuffer()
 	g.Close()
 	println(line)
-}
-
-func setView(g *gocui.Gui, v *gocui.View) error {
-	g.SetCurrentView(v.Name())
-	return nil
 }
 
 func updater(g *gocui.Gui) {
