@@ -173,15 +173,16 @@ func PrintResultsMultiline(w io.Writer, userString string, matches [][]int) {
     red := color.New(color.BgRed).SprintFunc()
 
   for index, char := range userString {
-    var colorer Colorer
     var match bool
-    if index % 2 == 0 {
-      colorer = red
-    } else {
-      colorer = blue
-    }
+    var colorer Colorer
 
-    for _, matchIndex := range matches {
+    for mi, matchIndex := range matches {
+      if mi % 2 == 0 {
+        colorer = red
+      } else {
+        colorer = blue
+      }
+
       if index >= matchIndex[0] && index < matchIndex[1] {
         match = true
       }
