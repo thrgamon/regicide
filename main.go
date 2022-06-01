@@ -197,28 +197,8 @@ func PrintResultsMultiline(w io.Writer, userString string, matches [][]int) {
       fmt.Fprintf(w, "%s", string(char))
     }
   }
-  // for index, matchIndex := range matches {
-  //   // Get the beginning and the end of the match
-  //   ms := matchIndex[0]
-  //   me := matchIndex[1]
-
-  //   // Split the string around the matches
-  //   prefix := userString[:ms]
-  //   result := userString[ms:me]
-  //   suffix := userString[me:]
-
-
-  //   if index == 0 {
-  //     fmt.Fprintf(w, "%s", prefix)
-  //   }
-  //     fmt.Fprintf(w, "%s", red(result))
-  //   if index == len(matches) - 1 {
-  //     fmt.Fprintf(w, "%s", suffix)
-  //   }
-
-    // Print, highlighting the match
-  // }
 }
+
 func PrintResults(w io.Writer, userString string, matchIndex []int) {
 	// Get the beginning and the end of the match
 	ms := matchIndex[0]
