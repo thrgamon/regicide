@@ -28,13 +28,8 @@ func main() {
 	flag.Parse()
 
 	if debugMode {
-		f, err := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			log.Fatalf("error opening file: %v", err)
-		}
-		defer f.Close()
-
-		fileLog.SetOutput(f)
+    f := sendLogsToFile()
+    defer f.Close()
 	}
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
@@ -208,3 +203,14 @@ func ReturnsMatch(re *regexp.Regexp, comparitor string) (results [][]int) {
 	ba := []byte(comparitor)
 	return re.FindAllIndex(ba, -1)
 }
+
+func sendLogsToFile() *os.File {
+  f, err := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+  if err != nil {
+    log.Fatalf("error opening file: %v", err)
+  }
+  fileLog.SetOutput(f)
+
+  return f
+}
+
