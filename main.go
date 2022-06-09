@@ -32,11 +32,34 @@ func main() {
     defer f.Close()
 	}
 
+  g := setupGui()
+
+	go updater(g)
+
+  startMainLoop(g)
+
+  closeDownGui(g)
+}
+
+func startMainLoop(g *gocui.Gui) {
+	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+		log.Panicln(err)
+	}
+}
+
+func closeDownGui(g *gocui.Gui) {
+  line := fetchCurrentRegex(g)
+
+	g.Close()
+
+	println(line)
+}
+
+func setupGui() *gocui.Gui {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		log.Panicln(err)
 	}
-
 	g.SetManagerFunc(layout)
 	g.Cursor = true
 
@@ -44,22 +67,19 @@ func main() {
 		log.Panicln(err)
 	}
 
-	go updater(g)
+  return g
+}
 
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.Panicln(err)
-	}
-
+func fetchCurrentRegex(g *gocui.Gui) string {
 	rv, _ := g.View("regex")
 	line := rv.ViewBuffer()
-	g.Close()
-	println(line)
+  return line
 }
 
 func updater(g *gocui.Gui) {
 	for {
 		select {
-		case reg := <-regex:
+		case <-regex:
 			g.Update(func(g *gocui.Gui) error {
 				v, err := g.View("results")
 				rv, err := g.View("regex")
@@ -68,12 +88,12 @@ func updater(g *gocui.Gui) {
 					return err
 				}
 
-				if debugMode {
-					fileLog.Print(reg)
-				}
-
 				v.Clear()
+
 				reRaw := strings.Replace(rv.ViewBuffer(), "\n", "", 1)
+
+        // If regex is an empty string then just print
+        // the plain user input with no matching
 				if reRaw == "" {
 					fmt.Fprint(v, userString)
 					return nil
@@ -82,17 +102,18 @@ func updater(g *gocui.Gui) {
 				re, err := regexp.Compile(reRaw)
 				if err != nil {
 					fmt.Fprint(v, err.Error())
-				} else {
-					matches := ReturnsMatch(re, userString)
-					if true {
-						PrintResultsMultiline(v, userString, matches)
-					} else {
-						for _, result := range matches {
-							PrintResults(v, userString, result)
-						}
-					}
-				}
+          return nil
+        }
 
+        matches := ReturnsMatch(re, userString)
+        if multiLine == true {
+          PrintResultsMultiline(v, userString, matches)
+        } else {
+          for _, result := range matches {
+            PrintResults(v, userString, result)
+          }
+        }
+                 
 				return nil
 			})
 		}
