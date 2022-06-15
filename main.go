@@ -26,19 +26,20 @@ func init() {
 
 func main() {
 	flag.Parse()
+  userString = flag.Arg(0)
 
 	if debugMode {
-    f := sendLogsToFile()
-    defer f.Close()
+		f := sendLogsToFile()
+		defer f.Close()
 	}
 
-  g := setupGui()
+	g := setupGui()
 
 	go updater(g)
 
-  startMainLoop(g)
+	startMainLoop(g)
 
-  closeDownGui(g)
+	closeDownGui(g)
 }
 
 func startMainLoop(g *gocui.Gui) {
@@ -48,7 +49,7 @@ func startMainLoop(g *gocui.Gui) {
 }
 
 func closeDownGui(g *gocui.Gui) {
-  line := fetchCurrentRegex(g)
+	line := fetchCurrentRegex(g)
 
 	g.Close()
 
@@ -67,13 +68,13 @@ func setupGui() *gocui.Gui {
 		log.Panicln(err)
 	}
 
-  return g
+	return g
 }
 
 func fetchCurrentRegex(g *gocui.Gui) string {
 	rv, _ := g.View("regex")
 	line := rv.ViewBuffer()
-  return line
+	return line
 }
 
 func updater(g *gocui.Gui) {
@@ -92,8 +93,8 @@ func updater(g *gocui.Gui) {
 
 				reRaw := strings.Replace(rv.ViewBuffer(), "\n", "", 1)
 
-        // If regex is an empty string then just print
-        // the plain user input with no matching
+				// If regex is an empty string then just print
+				// the plain user input with no matching
 				if reRaw == "" {
 					fmt.Fprint(v, userString)
 					return nil
@@ -102,18 +103,18 @@ func updater(g *gocui.Gui) {
 				re, err := regexp.Compile(reRaw)
 				if err != nil {
 					fmt.Fprint(v, err.Error())
-          return nil
-        }
+					return nil
+				}
 
-        matches := ReturnsMatch(re, userString)
-        if multiLine == true {
-          PrintResultsMultiline(v, userString, matches)
-        } else {
-          for _, result := range matches {
-            PrintResults(v, userString, result)
-          }
-        }
-                 
+				matches := ReturnsMatch(re, userString)
+				if multiLine == true {
+					PrintResultsMultiline(v, userString, matches)
+				} else {
+					for _, result := range matches {
+						PrintResults(v, userString, result)
+					}
+				}
+
 				return nil
 			})
 		}
@@ -226,12 +227,11 @@ func ReturnsMatch(re *regexp.Regexp, comparitor string) (results [][]int) {
 }
 
 func sendLogsToFile() *os.File {
-  f, err := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-  if err != nil {
-    log.Fatalf("error opening file: %v", err)
-  }
-  fileLog.SetOutput(f)
+	f, err := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	fileLog.SetOutput(f)
 
-  return f
+	return f
 }
-
