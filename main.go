@@ -15,7 +15,7 @@ import (
 
 var regex = make(chan string)
 var fileLog = log.Logger{}
-var userString = os.Args[1]
+var userString string
 var debugMode bool
 var multiLine bool
 
