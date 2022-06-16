@@ -142,9 +142,8 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 		v.Editable = true
-		v.Editor = gocui.EditorFunc(simpleEditor)
+		v.Editor = gocui.EditorFunc(regexEditor)
 		v.Wrap = true
-		g.SetCurrentView("regex")
 	}
 
 	if vr, err := g.SetView("results", 1, 4, maxX-2, maxY-2); err != nil {
@@ -152,12 +151,18 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 		fmt.Fprint(vr, userString)
+
+		vr.Editable = true
+		vr.Editor = gocui.EditorFunc(resultsEditor)
+		vr.Wrap = true
+		g.SetCurrentView("results")
 	}
 
 	return nil
 }
 
-func simpleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+
+func resultsEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	switch {
 	case ch != 0 && mod == 0:
 		v.EditWrite(ch)
@@ -165,6 +170,8 @@ func simpleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.EditWrite(' ')
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		v.EditDelete(true)
+	case key == gocui.KeyEnter:
+		v.EditNewLine()
 	case key == gocui.KeyArrowDown:
 		v.MoveCursor(0, 1, false)
 	case key == gocui.KeyArrowUp:
@@ -173,6 +180,19 @@ func simpleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.MoveCursor(-1, 0, false)
 	case key == gocui.KeyArrowRight:
 		v.MoveCursor(1, 0, false)
+	}
+
+	go func() { resultsChan <- "" }()
+}
+
+func regexEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	switch {
+	case ch != 0 && mod == 0:
+		v.EditWrite(ch)
+	case key == gocui.KeySpace:
+		v.EditWrite(' ')
+	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
+		v.EditDelete(true)
 	}
 
 	go func() { regex <- "" }()
