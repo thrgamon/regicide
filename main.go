@@ -27,7 +27,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-  userString = flag.Arg(0)
+	userString = flag.Arg(0)
 
 	if debugMode {
 		f := sendLogsToFile()
@@ -77,12 +77,12 @@ func setupGui() *gocui.Gui {
 }
 
 func changeView(g *gocui.Gui, v *gocui.View) error {
-  if g.CurrentView().Name() == "results" {
-	  g.SetCurrentView("regex")
-  } else {
-	  g.SetCurrentView("results")
-  }
-  return nil
+	if g.CurrentView().Name() == "results" {
+		g.SetCurrentView("regex")
+	} else {
+		g.SetCurrentView("results")
+	}
+	return nil
 }
 
 func fetchCurrentRegex(g *gocui.Gui) string {
@@ -111,21 +111,21 @@ func updater(g *gocui.Gui) {
 				// If regex is an empty string then just print
 				// the plain user input with no matching
 				if reRaw == "" {
-				  resultsView.Clear()
+					resultsView.Clear()
 					fmt.Fprint(resultsView, userString)
 					return nil
 				}
 
 				re, err := regexp.Compile(reRaw)
 				if err != nil {
-				  resultsView.Clear()
+					resultsView.Clear()
 					fmt.Fprint(resultsView, userString)
-				  errorsView.Clear()
+					errorsView.Clear()
 					fmt.Fprint(errorsView, err.Error())
 					return nil
 				}
 
-        userRegex = re
+				userRegex = re
 
 				matches := ReturnsMatch(re, userString)
 				resultsView.Clear()
@@ -140,18 +140,18 @@ func updater(g *gocui.Gui) {
 					return err
 				}
 
-        userString = resultsView.ViewBuffer()
+				userString = resultsView.ViewBuffer()
 
-        if userRegex == nil {
-				  resultsView.Clear()
+				if userRegex == nil {
+					resultsView.Clear()
 					fmt.Fprint(resultsView, userString)
-          return nil
-        }
+					return nil
+				}
 
 				matches := ReturnsMatch(userRegex, userString)
 				resultsView.Clear()
 				PrintResults(resultsView, userString, matches)
-        return nil
+				return nil
 			})
 		}
 	}
@@ -188,7 +188,6 @@ func layout(g *gocui.Gui) error {
 
 	return nil
 }
-
 
 func resultsEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	switch {
