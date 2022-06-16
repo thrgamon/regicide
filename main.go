@@ -19,12 +19,10 @@ var fileLog = log.Logger{}
 var userString string
 var userRegex *regexp.Regexp
 var debugMode bool
-var multiLine bool
 var view string
 
 func init() {
 	flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
-	flag.BoolVar(&multiLine, "multiline", false, "Run against multiple lines of text")
 }
 
 func main() {
@@ -125,14 +123,7 @@ func updater(g *gocui.Gui) {
 
 				matches := ReturnsMatch(re, userString)
 				resultsView.Clear()
-				if multiLine == true {
-					PrintResultsMultiline(resultsView, userString, matches)
-				} else {
-					for _, result := range matches {
-						PrintResults(resultsView, userString, result)
-					}
-				}
-
+				PrintResults(resultsView, userString, matches)
 				return nil
 			})
 		case <-resultsChan:
@@ -153,13 +144,7 @@ func updater(g *gocui.Gui) {
 
 				matches := ReturnsMatch(userRegex, userString)
 				resultsView.Clear()
-				if multiLine == true {
-					PrintResultsMultiline(resultsView, userString, matches)
-				} else {
-					for _, result := range matches {
-						PrintResults(resultsView, userString, result)
-					}
-				}
+				PrintResults(resultsView, userString, matches)
         return nil
 			})
 		}
@@ -236,7 +221,7 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 
 type Colorer func(a ...interface{}) string
 
-func PrintResultsMultiline(w io.Writer, userString string, matches [][]int) {
+func PrintResults(w io.Writer, userString string, matches [][]int) {
 	// Setup the color function
 	blue := color.New(color.BgBlue).SprintFunc()
 	red := color.New(color.BgRed).SprintFunc()
@@ -266,23 +251,6 @@ func PrintResultsMultiline(w io.Writer, userString string, matches [][]int) {
 			fmt.Fprintf(w, "%s", string(char))
 		}
 	}
-}
-
-func PrintResults(w io.Writer, userString string, matchIndex []int) {
-	// Get the beginning and the end of the match
-	ms := matchIndex[0]
-	me := matchIndex[1]
-
-	// Split the string around the matches
-	prefix := userString[:ms]
-	result := userString[ms:me]
-	suffix := userString[me:]
-
-	// Setup the color function
-	red := color.New(color.FgRed).SprintFunc()
-
-	// Print, highlighting the match
-	fmt.Fprintf(w, "%s%s%s\n", prefix, red(result), suffix)
 }
 
 func ReturnsMatch(re *regexp.Regexp, comparitor string) (results [][]int) {
