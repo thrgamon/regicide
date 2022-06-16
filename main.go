@@ -68,7 +68,20 @@ func setupGui() *gocui.Gui {
 		log.Panicln(err)
 	}
 
+	if err := g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, changeView); err != nil {
+		log.Panicln(err)
+	}
+
 	return g
+}
+
+func changeView(g *gocui.Gui, v *gocui.View) error {
+  if g.CurrentView().Name() == "results" {
+	  g.SetCurrentView("regex")
+  } else {
+	  g.SetCurrentView("results")
+  }
+  return nil
 }
 
 func fetchCurrentRegex(g *gocui.Gui) string {
