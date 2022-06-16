@@ -98,10 +98,13 @@ func updater(g *gocui.Gui) {
 			g.Update(func(g *gocui.Gui) error {
 				resultsView, err := g.View("results")
 				regexView, err := g.View("regex")
+				errorsView, err := g.View("errors")
 
 				if err != nil {
 					return err
 				}
+
+				errorsView.Clear()
 
 				reRaw := strings.Replace(regexView.ViewBuffer(), "\n", "", 1)
 
@@ -115,7 +118,10 @@ func updater(g *gocui.Gui) {
 
 				re, err := regexp.Compile(reRaw)
 				if err != nil {
-					fmt.Fprint(resultsView, err.Error())
+				  resultsView.Clear()
+					fmt.Fprint(resultsView, userString)
+				  errorsView.Clear()
+					fmt.Fprint(errorsView, err.Error())
 					return nil
 				}
 
@@ -153,25 +159,31 @@ func updater(g *gocui.Gui) {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	if v, err := g.SetView("regex", 1, 1, maxX-2, 3); err != nil {
+	if regexView, err := g.SetView("regex", 1, 1, maxX-2, 3); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Editable = true
-		v.Editor = gocui.EditorFunc(regexEditor)
-		v.Wrap = true
+		regexView.Editable = true
+		regexView.Editor = gocui.EditorFunc(regexEditor)
+		regexView.Wrap = true
 	}
 
-	if vr, err := g.SetView("results", 1, 4, maxX-2, maxY-2); err != nil {
+	if resultsView, err := g.SetView("results", 1, 4, maxX-2, maxY-5); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		fmt.Fprint(vr, userString)
+		fmt.Fprint(resultsView, userString)
 
-		vr.Editable = true
-		vr.Editor = gocui.EditorFunc(resultsEditor)
-		vr.Wrap = true
+		resultsView.Editable = true
+		resultsView.Editor = gocui.EditorFunc(resultsEditor)
+		resultsView.Wrap = true
 		g.SetCurrentView("results")
+	}
+
+	if _, err := g.SetView("errors", 1, maxY-4, maxX-2, maxY-2); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
 	}
 
 	return nil
