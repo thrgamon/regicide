@@ -1,5 +1,7 @@
 # Regicide
 
-A simple regex tester.
+A simple commandline regex tester, similar to Regex 101.
 
-`regicide "some text I want to test"`
+`$ regicide`
+
+[![asciicast](https://asciinema.org/a/3gGtIoEzwRVDw4wjuxeM2pSpq.svg)](https://asciinema.org/a/3gGtIoEzwRVDw4wjuxeM2pSpq)
