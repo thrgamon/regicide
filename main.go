@@ -14,10 +14,13 @@ import (
 )
 
 var regex = make(chan string)
+var resultsChan = make(chan string)
 var fileLog = log.Logger{}
 var userString string
+var userRegex *regexp.Regexp
 var debugMode bool
 var multiLine bool
+var view string
 
 func init() {
 	flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
@@ -95,43 +98,71 @@ func updater(g *gocui.Gui) {
 		select {
 		case <-regex:
 			g.Update(func(g *gocui.Gui) error {
-				v, err := g.View("results")
-				rv, err := g.View("regex")
+				resultsView, err := g.View("results")
+				regexView, err := g.View("regex")
 
 				if err != nil {
 					return err
 				}
 
-				v.Clear()
-
-				reRaw := strings.Replace(rv.ViewBuffer(), "\n", "", 1)
+				reRaw := strings.Replace(regexView.ViewBuffer(), "\n", "", 1)
 
 				// If regex is an empty string then just print
 				// the plain user input with no matching
 				if reRaw == "" {
-					fmt.Fprint(v, userString)
+				  resultsView.Clear()
+					fmt.Fprint(resultsView, userString)
 					return nil
 				}
 
 				re, err := regexp.Compile(reRaw)
 				if err != nil {
-					fmt.Fprint(v, err.Error())
+					fmt.Fprint(resultsView, err.Error())
 					return nil
 				}
 
+        userRegex = re
+
 				matches := ReturnsMatch(re, userString)
+				resultsView.Clear()
 				if multiLine == true {
-					PrintResultsMultiline(v, userString, matches)
+					PrintResultsMultiline(resultsView, userString, matches)
 				} else {
 					for _, result := range matches {
-						PrintResults(v, userString, result)
+						PrintResults(resultsView, userString, result)
 					}
 				}
 
 				return nil
 			})
-		}
+		case <-resultsChan:
+			g.Update(func(g *gocui.Gui) error {
+				resultsView, err := g.View("results")
 
+				if err != nil {
+					return err
+				}
+
+        userString = resultsView.ViewBuffer()
+
+        if userRegex == nil {
+				  resultsView.Clear()
+					fmt.Fprint(resultsView, userString)
+          return nil
+        }
+
+				matches := ReturnsMatch(userRegex, userString)
+				resultsView.Clear()
+				if multiLine == true {
+					PrintResultsMultiline(resultsView, userString, matches)
+				} else {
+					for _, result := range matches {
+						PrintResults(resultsView, userString, result)
+					}
+				}
+        return nil
+			})
+		}
 	}
 }
 
