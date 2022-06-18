@@ -13,13 +13,17 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-var regex = make(chan string)
-var resultsChan = make(chan string)
-var fileLog = log.Logger{}
-var userString string
-var userRegex *regexp.Regexp
-var debugMode bool
-var view string
+var (
+	regexChan   = make(chan string)
+	resultsChan = make(chan string)
+	fileLog     = log.Logger{}
+	userString  string
+	userRegex   *regexp.Regexp
+	debugMode   bool
+	view        string
+)
+
+type Colorer func(a ...interface{}) string
 
 func init() {
 	flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
@@ -54,7 +58,7 @@ func closeDownGui(g *gocui.Gui) {
 
 	g.Close()
 
-	println(line)
+	print(line)
 }
 
 func setupGui() *gocui.Gui {
@@ -94,7 +98,7 @@ func fetchCurrentRegex(g *gocui.Gui) string {
 func updater(g *gocui.Gui) {
 	for {
 		select {
-		case <-regex:
+		case <-regexChan:
 			g.Update(func(g *gocui.Gui) error {
 				resultsView, err := g.View("results")
 				regexView, err := g.View("regex")
@@ -159,6 +163,7 @@ func updater(g *gocui.Gui) {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
+
 	if regexView, err := g.SetView("regex", 1, 1, maxX-2, 3); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -172,6 +177,7 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
+
 		fmt.Fprint(resultsView, userString)
 
 		resultsView.Editable = true
@@ -222,46 +228,45 @@ func regexEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.EditDelete(true)
 	}
 
-	go func() { regex <- "" }()
+	go func() { regexChan <- "" }()
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
-	close(regex)
+	close(regexChan)
+	close(resultsChan)
 	return gocui.ErrQuit
 }
-
-type Colorer func(a ...interface{}) string
 
 func PrintResults(w io.Writer, userString string, matches [][]int) {
 	// Setup the color function
 	blue := color.New(color.BgBlue).SprintFunc()
 	red := color.New(color.BgRed).SprintFunc()
 
-	for index, char := range userString {
-		var match bool
+  lastIndex := 0
+  for index, matchTuple := range matches {
 		var colorer Colorer
 
-		for mi, matchIndex := range matches {
-			if mi%2 == 0 {
-				colorer = red
-			} else {
-				colorer = blue
-			}
+    if index%2 == 0 {
+      colorer = red
+    } else {
+      colorer = blue
+    }
 
-			if index >= matchIndex[0] && index < matchIndex[1] {
-				match = true
-			}
-			if match == true {
-				break
-			}
-		}
+    startMatch := matchTuple[0]
+    endMatch := matchTuple[1]
 
-		if match == true {
-			fmt.Fprintf(w, "%s", colorer(string(char)))
-		} else {
-			fmt.Fprintf(w, "%s", string(char))
-		}
-	}
+    var prefixSlice string
+    if startMatch > 0 {
+      prefixSlice = userString[lastIndex:startMatch]
+    }
+
+    highlightSlice := userString[startMatch:endMatch]
+    lastIndex = endMatch
+
+    fmt.Fprintf(w, "%s", string(prefixSlice))
+    fmt.Fprintf(w, "%s", colorer(string(highlightSlice)))
+  }
+  fmt.Fprintf(w, "%s", string(userString[lastIndex:]))
 }
 
 func ReturnsMatch(re *regexp.Regexp, comparitor string) (results [][]int) {
