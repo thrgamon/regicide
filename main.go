@@ -31,7 +31,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-	userString = flag.Arg(0)
 
 	if debugMode {
 		f := sendLogsToFile()
@@ -120,6 +119,8 @@ func updater(g *gocui.Gui) {
 					return nil
 				}
 
+        // Compile the regex and if it is invalid then
+        // clear any highlighting and show the errors
 				re, err := regexp.Compile(reRaw)
 				if err != nil {
 					resultsView.Clear()
@@ -131,9 +132,10 @@ func updater(g *gocui.Gui) {
 
 				userRegex = re
 
-				matches := ReturnsMatch(re, userString)
-				resultsView.Clear()
-				PrintResults(resultsView, userString, matches)
+      
+        // Print the matches to the results view with
+        // highlighting
+        displayMatches(resultsView, re, userString)
 				return nil
 			})
 		case <-resultsChan:
@@ -152,13 +154,19 @@ func updater(g *gocui.Gui) {
 					return nil
 				}
 
-				matches := ReturnsMatch(userRegex, userString)
-				resultsView.Clear()
-				PrintResults(resultsView, userString, matches)
+        // Print the matches to the results view with
+        // highlighting
+        displayMatches(resultsView, userRegex, userString)
 				return nil
 			})
 		}
 	}
+}
+
+func displayMatches(view *gocui.View, regex *regexp.Regexp, userInput string) {
+    matches := ReturnsMatch(regex, userInput)
+    view.Clear()
+    PrintResults(view, userInput, matches)
 }
 
 func layout(g *gocui.Gui) error {
@@ -255,16 +263,13 @@ func PrintResults(w io.Writer, userString string, matches [][]int) {
     startMatch := matchTuple[0]
     endMatch := matchTuple[1]
 
-    var prefixSlice string
-    if startMatch > 0 {
-      prefixSlice = userString[lastIndex:startMatch]
-    }
-
+    prefixSlice := userString[lastIndex:startMatch]
     highlightSlice := userString[startMatch:endMatch]
-    lastIndex = endMatch
 
     fmt.Fprintf(w, "%s", string(prefixSlice))
     fmt.Fprintf(w, "%s", colorer(string(highlightSlice)))
+
+    lastIndex = endMatch
   }
   fmt.Fprintf(w, "%s", string(userString[lastIndex:]))
 }
