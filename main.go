@@ -17,9 +17,9 @@ var (
 	regexChan   = make(chan string)
 	resultsChan = make(chan string)
 	fileLog     = log.Logger{}
-	userString  string
 	userRegex   *regexp.Regexp
 	debugMode   bool
+	testCases   string
 	view        string
 )
 
@@ -27,6 +27,7 @@ type Colorer func(a ...interface{}) string
 
 func init() {
 	flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
+  flag.StringVar(&testCases, "cases", "", "Run in debug mode")
 }
 
 func main() {
@@ -115,7 +116,7 @@ func updater(g *gocui.Gui) {
 				// the plain user input with no matching
 				if reRaw == "" {
 					resultsView.Clear()
-					fmt.Fprint(resultsView, userString)
+					fmt.Fprint(resultsView, testCases)
 					return nil
 				}
 
@@ -124,7 +125,7 @@ func updater(g *gocui.Gui) {
 				re, err := regexp.Compile(reRaw)
 				if err != nil {
 					resultsView.Clear()
-					fmt.Fprint(resultsView, userString)
+					fmt.Fprint(resultsView, testCases)
 					errorsView.Clear()
 					fmt.Fprint(errorsView, err.Error())
 					return nil
@@ -135,7 +136,7 @@ func updater(g *gocui.Gui) {
       
         // Print the matches to the results view with
         // highlighting
-        displayMatches(resultsView, re, userString)
+        displayMatches(resultsView, re, testCases)
 				return nil
 			})
 		case <-resultsChan:
@@ -146,17 +147,17 @@ func updater(g *gocui.Gui) {
 					return err
 				}
 
-				userString = resultsView.ViewBuffer()
+				testCases = resultsView.ViewBuffer()
 
 				if userRegex == nil {
 					resultsView.Clear()
-					fmt.Fprint(resultsView, userString)
+					fmt.Fprint(resultsView, testCases)
 					return nil
 				}
 
         // Print the matches to the results view with
         // highlighting
-        displayMatches(resultsView, userRegex, userString)
+        displayMatches(resultsView, userRegex, testCases)
 				return nil
 			})
 		}
@@ -186,7 +187,7 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 
-		fmt.Fprint(resultsView, userString)
+		fmt.Fprint(resultsView, testCases)
 
 		resultsView.Editable = true
 		resultsView.Editor = gocui.EditorFunc(resultsEditor)
@@ -245,7 +246,7 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
-func PrintResults(w io.Writer, userString string, matches [][]int) {
+func PrintResults(w io.Writer, testCases string, matches [][]int) {
 	// Setup the color function
 	blue := color.New(color.BgBlue).SprintFunc()
 	red := color.New(color.BgRed).SprintFunc()
@@ -263,15 +264,15 @@ func PrintResults(w io.Writer, userString string, matches [][]int) {
     startMatch := matchTuple[0]
     endMatch := matchTuple[1]
 
-    prefixSlice := userString[lastIndex:startMatch]
-    highlightSlice := userString[startMatch:endMatch]
+    prefixSlice := testCases[lastIndex:startMatch]
+    highlightSlice := testCases[startMatch:endMatch]
 
     fmt.Fprintf(w, "%s", string(prefixSlice))
     fmt.Fprintf(w, "%s", colorer(string(highlightSlice)))
 
     lastIndex = endMatch
   }
-  fmt.Fprintf(w, "%s", string(userString[lastIndex:]))
+  fmt.Fprintf(w, "%s", string(testCases[lastIndex:]))
 }
 
 func ReturnsMatch(re *regexp.Regexp, comparitor string) (results [][]int) {
@@ -280,7 +281,7 @@ func ReturnsMatch(re *regexp.Regexp, comparitor string) (results [][]int) {
 }
 
 func sendLogsToFile() *os.File {
-	f, err := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile("/tmp/regicide-debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
