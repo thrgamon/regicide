@@ -34,12 +34,47 @@ func TestReturnsMatch(t *testing.T) {
 	}
 }
 
-func BenchmarkPrintResults(b *testing.B) {
-  buffer := bytes.Buffer{}
-  result := [][]int{{0, 1}, {2,4}, {5, 6}, {7, 10}, {22, 46}, {59, 100}, {101, 102}}
-  userString := "Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox."
+func TestReFlagsAllSet(t *testing.T) {
+	flags := regexFlags{true, true, true, true}
 
-  for n := 0; n < b.N; n++ {
-    PrintResults(&buffer, userString, result)
-  }
+	got := flags.String()
+	want := "imsU"
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q want %q", got, want)
+	}
+}
+
+func TestReFlagsHalfSet(t *testing.T) {
+	flags := regexFlags{false, true, false, true}
+
+	got := flags.String()
+	want := "mU"
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q want %q", got, want)
+	}
+}
+
+func TestReFlagsUpdate(t *testing.T) {
+	flags := regexFlags{false, false, false, false}
+
+	flags.multiLine = true
+
+	got := flags.String()
+	want := "m"
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q want %q", got, want)
+	}
+}
+
+func BenchmarkPrintResults(b *testing.B) {
+	buffer := bytes.Buffer{}
+	result := [][]int{{0, 1}, {2, 4}, {5, 6}, {7, 10}, {22, 46}, {59, 100}, {101, 102}}
+	userString := "Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox.Thw quick brown fox jumped over the lazy dog ang the lazy dog was jumped over by the quick brown fox."
+
+	for n := 0; n < b.N; n++ {
+		PrintResults(&buffer, userString, result)
+	}
 }

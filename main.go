@@ -16,18 +16,48 @@ import (
 var (
 	regexChan   = make(chan string)
 	resultsChan = make(chan string)
+	flagsChan = make(chan string)
 	fileLog     = log.Logger{}
 	userRegex   *regexp.Regexp
 	debugMode   bool
 	testCases   string
 	view        string
+	reFlags     regexFlags
 )
+
+type regexFlags struct {
+	caseInsensitive bool
+	multiLine       bool
+	dotNewline      bool
+	ungreedy        bool
+}
 
 type Colorer func(a ...interface{}) string
 
+func (flags *regexFlags) String() (flagsAsString string) {
+	if flags.caseInsensitive {
+		flagsAsString += "i"
+	}
+
+	if flags.multiLine {
+		flagsAsString += "m"
+	}
+
+	if flags.dotNewline {
+		flagsAsString += "s"
+	}
+
+	if flags.ungreedy {
+		flagsAsString += "U"
+	}
+
+	return flagsAsString
+}
+
 func init() {
 	flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
-  flag.StringVar(&testCases, "cases", "", "Run in debug mode")
+	flag.StringVar(&testCases, "cases", "", "Run in debug mode")
+	reFlags = regexFlags{}
 }
 
 func main() {
@@ -73,11 +103,63 @@ func setupGui() *gocui.Gui {
 		log.Panicln(err)
 	}
 
+	if err := g.SetKeybinding("", gocui.KeyCtrlM, gocui.ModNone, updateMultilineFlag); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding("", gocui.KeyCtrlU, gocui.ModNone, updateUngreedyFlag); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding("", gocui.KeyCtrlS, gocui.ModNone, updateCaseInsensitiveFlag); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding("", gocui.KeyCtrlN, gocui.ModNone, updateDotNewlineFlag); err != nil {
+		log.Panicln(err)
+	}
+
 	if err := g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, changeView); err != nil {
 		log.Panicln(err)
 	}
 
 	return g
+}
+
+func updateMultilineFlag(g *gocui.Gui, v *gocui.View) error {
+	updateRegexFlags("multiLine", !reFlags.multiLine)
+	return nil
+}
+
+func updateUngreedyFlag(g *gocui.Gui, v *gocui.View) error {
+	updateRegexFlags("ungreedy", !reFlags.ungreedy)
+	return nil
+}
+
+func updateCaseInsensitiveFlag(g *gocui.Gui, v *gocui.View) error {
+	updateRegexFlags("caseInsensitive", !reFlags.caseInsensitive)
+	return nil
+}
+
+func updateDotNewlineFlag(g *gocui.Gui, v *gocui.View) error {
+	updateRegexFlags("dotNewline", !reFlags.dotNewline)
+	return nil
+}
+
+func updateRegexFlags(flag string, value bool) error {
+	switch flag {
+	case "multiLine":
+		reFlags.multiLine = value
+	case "ungreedy":
+		reFlags.ungreedy = value
+	case "caseInsensitive":
+		reFlags.caseInsensitive = value
+	case "dotNewline":
+		reFlags.dotNewline = value
+	}
+	go func() { regexChan <- "" }()
+	go func() { flagsChan <- "" }()
+	return nil
 }
 
 func changeView(g *gocui.Gui, v *gocui.View) error {
@@ -98,6 +180,19 @@ func fetchCurrentRegex(g *gocui.Gui) string {
 func updater(g *gocui.Gui) {
 	for {
 		select {
+		case <-flagsChan:
+			g.Update(func(g *gocui.Gui) error {
+				flagsView, err := g.View("flags")
+
+				if err != nil {
+					return err
+				}
+
+				flagsView.Clear()
+
+				fmt.Fprint(flagsView, reFlags.String())
+				return nil
+			})
 		case <-regexChan:
 			g.Update(func(g *gocui.Gui) error {
 				resultsView, err := g.View("results")
@@ -120,9 +215,9 @@ func updater(g *gocui.Gui) {
 					return nil
 				}
 
-        // Compile the regex and if it is invalid then
-        // clear any highlighting and show the errors
-				re, err := regexp.Compile(reRaw)
+				// Compile the regex and if it is invalid then
+				// clear any highlighting and show the errors
+				re, err := regexp.Compile("(?" + reFlags.String() + ")" + reRaw)
 				if err != nil {
 					resultsView.Clear()
 					fmt.Fprint(resultsView, testCases)
@@ -133,10 +228,9 @@ func updater(g *gocui.Gui) {
 
 				userRegex = re
 
-      
-        // Print the matches to the results view with
-        // highlighting
-        displayMatches(resultsView, re, testCases)
+				// Print the matches to the results view with
+				// highlighting
+				displayMatches(resultsView, re, testCases)
 				return nil
 			})
 		case <-resultsChan:
@@ -155,9 +249,9 @@ func updater(g *gocui.Gui) {
 					return nil
 				}
 
-        // Print the matches to the results view with
-        // highlighting
-        displayMatches(resultsView, userRegex, testCases)
+				// Print the matches to the results view with
+				// highlighting
+				displayMatches(resultsView, userRegex, testCases)
 				return nil
 			})
 		}
@@ -165,21 +259,27 @@ func updater(g *gocui.Gui) {
 }
 
 func displayMatches(view *gocui.View, regex *regexp.Regexp, userInput string) {
-    matches := ReturnsMatch(regex, userInput)
-    view.Clear()
-    PrintResults(view, userInput, matches)
+	matches := ReturnsMatch(regex, userInput)
+	view.Clear()
+	PrintResults(view, userInput, matches)
 }
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
-	if regexView, err := g.SetView("regex", 1, 1, maxX-2, 3); err != nil {
+	if regexView, err := g.SetView("regex", 1, 1, maxX-10, 3); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		regexView.Editable = true
 		regexView.Editor = gocui.EditorFunc(regexEditor)
 		regexView.Wrap = true
+	}
+
+	if _, err := g.SetView("flags", maxX-9, 1, maxX-2, 3); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
 	}
 
 	if resultsView, err := g.SetView("results", 1, 4, maxX-2, maxY-5); err != nil {
@@ -251,28 +351,28 @@ func PrintResults(w io.Writer, testCases string, matches [][]int) {
 	blue := color.New(color.BgBlue).SprintFunc()
 	red := color.New(color.BgRed).SprintFunc()
 
-  lastIndex := 0
-  for index, matchTuple := range matches {
+	lastIndex := 0
+	for index, matchTuple := range matches {
 		var colorer Colorer
 
-    if index%2 == 0 {
-      colorer = red
-    } else {
-      colorer = blue
-    }
+		if index%2 == 0 {
+			colorer = red
+		} else {
+			colorer = blue
+		}
 
-    startMatch := matchTuple[0]
-    endMatch := matchTuple[1]
+		startMatch := matchTuple[0]
+		endMatch := matchTuple[1]
 
-    prefixSlice := testCases[lastIndex:startMatch]
-    highlightSlice := testCases[startMatch:endMatch]
+		prefixSlice := testCases[lastIndex:startMatch]
+		highlightSlice := testCases[startMatch:endMatch]
 
-    fmt.Fprintf(w, "%s", string(prefixSlice))
-    fmt.Fprintf(w, "%s", colorer(string(highlightSlice)))
+		fmt.Fprintf(w, "%s", string(prefixSlice))
+		fmt.Fprintf(w, "%s", colorer(string(highlightSlice)))
 
-    lastIndex = endMatch
-  }
-  fmt.Fprintf(w, "%s", string(testCases[lastIndex:]))
+		lastIndex = endMatch
+	}
+	fmt.Fprintf(w, "%s", string(testCases[lastIndex:]))
 }
 
 func ReturnsMatch(re *regexp.Regexp, comparitor string) (results [][]int) {
