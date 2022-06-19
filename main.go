@@ -103,7 +103,7 @@ func setupGui() *gocui.Gui {
 		log.Panicln(err)
 	}
 
-	if err := g.SetKeybinding("", gocui.KeyCtrlM, gocui.ModNone, updateMultilineFlag); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlL, gocui.ModNone, updateMultilineFlag); err != nil {
 		log.Panicln(err)
 	}
 
